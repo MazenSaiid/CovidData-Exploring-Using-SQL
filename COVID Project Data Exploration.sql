@@ -96,4 +96,91 @@ Select location, date, total_cases, total_deaths, population,
  order by HighestDeathCount desc 
 
 
+ 
+ --Globally
 
+ Select  date, Sum(convert(int,new_cases)) as TotalCases, Sum(convert(int,new_deaths)) as TotalDeaths,
+ (Sum(convert(decimal,new_deaths))/Nullif(Sum(convert(decimal,new_cases)),0))*100 as DeathToCasesPercentage
+ from [dbo].[covid-data-deaths]
+ where continent is not null
+ group by date
+ order by date
+
+ Create View DayByDayCasesvsDeaths
+ as
+ Select  date, Sum(convert(int,new_cases)) as TotalCases, Sum(convert(int,new_deaths)) as TotalDeaths,
+ (Sum(convert(decimal,new_deaths))/Nullif(Sum(convert(decimal,new_cases)),0))*100 as DeathToCasesPercentage
+ from [dbo].[covid-data-deaths]
+ where continent is not null
+ group by date
+
+ Select * from DayByDayCasesvsDeaths 
+ order by date
+
+
+Create View TotalCasesvsDeathsGlobally
+ as
+ Select  Sum(convert(int,new_cases)) as TotalCases, Sum(convert(int,new_deaths)) as TotalDeaths,
+ (Sum(convert(decimal,new_deaths))/Nullif(Sum(convert(decimal,new_cases)),0))*100 as DeathToCasesPercentage
+ from [dbo].[covid-data-deaths]
+ where continent is not null
+
+ Select * from TotalCasesvsDeathsGlobally 
+
+
+
+ --Vacc Table
+
+
+ Select * from 
+[dbo].[covid-data-deaths] as dea
+inner join [dbo].[covid-data-vacc] as vacc
+on dea.location = vacc.location and 
+dea.date = vacc.date
+
+
+--Looking at Total Populations vs Vaccinations
+
+
+Select dea.continent, dea.location, dea.date,population,new_vaccinations from 
+[dbo].[covid-data-deaths] as dea
+inner join [dbo].[covid-data-vacc] as vacc
+on dea.location = vacc.location and 
+dea.date = vacc.date
+where dea.continent is not null
+order by dea.location,dea.date
+
+
+
+Select dea.continent, dea.location, dea.date, population,
+new_vaccinations,SUM(cast(vacc.new_vaccinations as int)) 
+OVER (Partition By dea.location order by dea.location, dea.date) as TotalVaccDayByDayConsecutively from 
+[dbo].[covid-data-deaths] as dea
+inner join [dbo].[covid-data-vacc] as vacc
+on dea.location = vacc.location and 
+dea.date = vacc.date
+where dea.continent is not null
+order by dea.location,dea.date
+
+
+Select dea.continent, dea.location, dea.date, population,
+new_vaccinations,SUM(cast(vacc.new_vaccinations as float)) 
+OVER (Partition By dea.location order by dea.location, dea.date) as TotalVaccDayByDayConsecutively 
+into TempTable from 
+[dbo].[covid-data-deaths] as dea
+inner join [dbo].[covid-data-vacc] as vacc
+on dea.location = vacc.location and 
+dea.date = vacc.date
+where dea.continent is not null
+
+
+Select *, (TotalVaccDayByDayConsecutively/population)*100
+ as PercentageVaccinated  from TempTable 
+
+Create View PercentagePopulationVaccintaed
+as 
+Select *, (TotalVaccDayByDayConsecutively/population)*100
+ as PercentageVaccinated  from TempTable 
+
+
+ Select * from PercentagePopulationVaccintaed
